@@ -3,23 +3,58 @@ const mongoose = require("mongoose")
 const leadSchema = new mongoose.Schema({
   shipper: {
     type: String,
+    default: "",
   },
   contactPerson: {
     type: String,
+    default: "",
   },
-  address: String,
-  state: String,
-  timeZone: String,
-  phoneNumber: String,
-  website: String,
-  commodity: String,
-  email: String,
+  address: {
+    type: String,
+    default: "",
+  },
+  state: {
+    type: String,
+    default: "",
+  },
+  timeZone: {
+    type: String,
+    default: "",
+  },
+  phoneNumber: {
+    type: String,
+    default: "",
+  },
+  website: {
+    type: String,
+    default: "",
+  },
+  commodity: {
+    type: String,
+    default: "",
+  },
+  email: {
+    type: String,
+    default: "",
+  },
   dateOfCall: Date,
-  followUp: Date,
+  // followUp: Date,
   addedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true,
+  },
+  status: {
+    type: String,
+    default: "new",
+  },
+  response: {
+    type: String,
+    default: "",
+  },
+  dnd: {
+    type: Boolean,
+    default: false,
   },
 })
 
