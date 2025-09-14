@@ -9,11 +9,16 @@ const followUpSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  leadId: {
+  lead: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Lead",
     required: true,
     unique: true,
+  },
+  addedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
   },
 })
 

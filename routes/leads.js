@@ -6,6 +6,9 @@ const fs = require("fs")
 const upload = require("../middlewares/fileUpload")
 const auth = require("../middlewares/auth")
 const PhoneNumber = require("../models/PhoneNumber")
+const Email = require("../models/Email")
+const Response = require("../models/Response")
+const Comment = require("../models/Comment")
 
 const router = express.Router()
 
@@ -117,6 +120,101 @@ router.get("/get-phone-numbers", auth, async (req, res, next) => {
     return res
       .status(400)
       .json({ error: e.message || "Error while fetching phone numbers." })
+  }
+})
+
+router.post("/add-email", auth, async (req, res, next) => {
+  const { phoneNumber, comment, leadId } = req.body
+  try {
+    const emailInstance = new Email({ email: phoneNumber, comment, leadId })
+    await emailInstance.save()
+    return res.status(201).json({ message: "Email added !!!" })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while adding email." })
+  }
+})
+
+router.get("/get-emails", auth, async (req, res, next) => {
+  const leadId = req.query.leadId
+  // console.log("leadId", leadId)
+  try {
+    const emails = await Email.find({
+      leadId: leadId,
+    })
+    if (!emails) {
+      let newError = new Error("Error while getting emails.")
+      throw newError
+    }
+    return res.status(200).json({
+      phoneNumbers: emails,
+    })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while fetching emails." })
+  }
+})
+
+router.post("/add-response", auth, async (req, res, next) => {
+  try {
+    const { leadId, response } = req.body
+    const newResponse = new Response({ leadId, response })
+    await newResponse.save()
+    const foundLead = await Lead.findById(leadId)
+    switch (response) {
+      case "Not Connected":
+        foundLead.status = "Not Connected"
+        await foundLead.save()
+        break
+      case "Freight On Board (FOB)":
+      case "Customer Routed":
+      case "Do Not Desturb (DND)":
+      case "Not Interested":
+        foundLead.status = "DND"
+        await foundLead.save()
+        break
+      case "Callback Later":
+        foundLead.status = "Callback Later"
+        await foundLead.save()
+        break
+      case "Email Sent":
+        foundLead.status = "Email Sent"
+        await foundLead.save()
+        break
+      case "Quote Received":
+      case "Load Received":
+        foundLead.status = "Prospect"
+        await foundLead.save()
+        break
+      case "Load covered":
+        foundLead.status = "Customer Added"
+        await foundLead.save()
+        break
+    }
+    return res.status(201).json({
+      message: "Response added successfully.",
+    })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while adding response." })
+  }
+})
+
+router.post("/add-comment", auth, async (req, res, next) => {
+  try {
+    const { leadId, comment } = req.body
+    const newComment = new Comment({ leadId, comment })
+    await newComment.save()
+    return res.status(201).json({
+      message: "Comment added successfully.",
+    })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while adding Comment." })
   }
 })
 
