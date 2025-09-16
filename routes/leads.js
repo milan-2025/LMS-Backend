@@ -218,4 +218,27 @@ router.post("/add-comment", auth, async (req, res, next) => {
   }
 })
 
+router.get("/filtered-options", auth, async (req, res, next) => {
+  try {
+    const { field } = req.query
+    const { value } = req.query
+    const options = await Lead.find(
+      {
+        [field]: { $regex: value, $options: "i" },
+      },
+      {
+        [field]: 1,
+      }
+    ).limit(10)
+
+    return res.status(200).json({
+      options,
+    })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while getting options." })
+  }
+})
+
 module.exports = router
