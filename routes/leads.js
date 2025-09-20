@@ -9,6 +9,13 @@ const PhoneNumber = require("../models/PhoneNumber")
 const Email = require("../models/Email")
 const Response = require("../models/Response")
 const Comment = require("../models/Comment")
+const dayjs = require("dayjs")
+const utc = require("dayjs/plugin/utc")
+const timezone = require("dayjs/plugin/timezone")
+const FollowUp = require("../models/FollowUp")
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const router = express.Router()
 
@@ -220,24 +227,252 @@ router.post("/add-comment", auth, async (req, res, next) => {
 
 router.get("/filtered-options", auth, async (req, res, next) => {
   try {
+    const timezones = [
+      { name: "PST", id: "America/Los_Angeles" },
+      { name: "MST", id: "America/Denver" },
+      { name: "CST", id: "America/Chicago" },
+      { name: "EST", id: "America/New_York" },
+    ]
+    let nowDate = null
+    const dueTimezoneConditions = timezones.map((tzone) => {
+      // let now = new Date()
+      // let dateString = now.toLocaleString("en-US", {
+      //   timeZone: tzone.id,
+      // })
+      // let nowDate = new Date(dateString)
+      // console.log("date in bk", nowDate)
+
+      nowDate = dayjs().tz(tzone.id)
+      // console.log("nd ", nowDate.toDate())
+
+      // let nowDate =
+      // console.log("bkdate", nowDate)
+      return {
+        timeZone: tzone.name,
+        date: { $lte: nowDate.toDate() },
+      }
+    })
+
+    let mainQuery = {
+      addedBy: req.user._id,
+    }
+
     const { field } = req.query
     const { value } = req.query
-    const options = await Lead.find(
-      {
-        [field]: { $regex: value, $options: "i" },
-      },
-      {
-        [field]: 1,
-      }
-    ).limit(10)
+    const { tbValue } = req.query
+    if (tbValue != "Follow Ups") {
+      const options = await Lead.find(
+        {
+          [field]: { $regex: value, $options: "i" },
+        },
+        {
+          [field]: 1,
+        }
+      ).limit(10)
 
-    return res.status(200).json({
-      options,
-    })
+      return res.status(200).json({
+        options,
+      })
+    } else if (tbValue == "Follow Ups") {
+      // const strField = `lead.${field}`
+
+      const pipeline = [
+        {
+          $lookup: {
+            from: "leads", // The name of the collection for your Lead model
+            localField: "lead",
+            foreignField: "_id",
+            as: "lead",
+          },
+        },
+        {
+          $unwind: "$lead",
+        },
+        {
+          $match: {
+            ...mainQuery,
+            ["lead." + field]: { $regex: value, $options: "i" },
+            $or: dueTimezoneConditions,
+          },
+        },
+        {
+          $project: {
+            ["lead." + field]: 1,
+          },
+        },
+        {
+          $limit: 10,
+        },
+      ]
+      const options = await FollowUp.aggregate(pipeline)
+      return res.status(200).json({
+        options,
+      })
+    }
   } catch (e) {
     return res
       .status(400)
       .json({ error: e.message || "Error while getting options." })
+  }
+})
+
+router.post("/get-filtered-leads", auth, async (req, res, next) => {
+  try {
+    let { state, commodity, timeZone, status, page, limit } = req.body
+    let query = {}
+    if (state.length > 0) {
+      query.state = new RegExp(state, "i")
+    }
+    if (commodity.length > 0) {
+      query.commodity = new RegExp(commodity, "i")
+    }
+    if (timeZone.length > 0) {
+      query.timeZone = new RegExp(timeZone, "i")
+    }
+    if (status.length > 0) {
+      query.status = new RegExp(status, "i")
+    }
+
+    const skip = (page - 1) * limit
+    const totalItems = await Lead.find(query).countDocuments()
+    const totalPages = Math.ceil(totalItems / limit)
+
+    let filteredLeads = await Lead.find(query).skip(skip).limit(limit)
+    return res
+      .status(200)
+      .json({ filteredLeads, page, limit, totalItems, totalPages })
+  } catch (e) {
+    return res
+      .status(400)
+      .json({ error: e.message || "Error while getting filtered leads." })
+  }
+})
+
+router.post("/get-filtered-leads/follow-up", auth, async (req, res, next) => {
+  let { state, commodity, timeZone, status, page, limit } = req.body
+  try {
+    const timezones = [
+      { name: "PST", id: "America/Los_Angeles" },
+      { name: "MST", id: "America/Denver" },
+      { name: "CST", id: "America/Chicago" },
+      { name: "EST", id: "America/New_York" },
+    ]
+    let nowDate = null
+    const dueTimezoneConditions = timezones.map((tzone) => {
+      // let now = new Date()
+      // let dateString = now.toLocaleString("en-US", {
+      //   timeZone: tzone.id,
+      // })
+      // let nowDate = new Date(dateString)
+      // console.log("date in bk", nowDate)
+
+      nowDate = dayjs().tz(tzone.id)
+      // console.log("nd ", nowDate.toDate())
+
+      // let nowDate =
+      // console.log("bkdate", nowDate)
+      return {
+        timeZone: tzone.name,
+        date: { $lte: nowDate.toDate() },
+      }
+    })
+
+    let mainQuery = {
+      addedBy: req.user._id,
+    }
+
+    if (state && state.length > 0) {
+      mainQuery["lead.state"] = new RegExp(state, "i")
+    }
+    if (commodity && commodity.length > 0) {
+      mainQuery["lead.commodity"] = new RegExp(commodity, "i")
+    }
+    if (timeZone && timeZone.length > 0) {
+      mainQuery["lead.timeZone"] = new RegExp(timeZone, "i")
+    }
+    if (status && status.length > 0) {
+      mainQuery["lead.status"] = new RegExp(status, "i")
+    }
+    const skip = (page - 1) * limit
+
+    const pipeline = [
+      // Stage 1: Join with the 'leads' collection
+      {
+        $lookup: {
+          from: "leads", // The name of the collection for your Lead model
+          localField: "lead",
+          foreignField: "_id",
+          as: "lead",
+        },
+      },
+      // Stage 2: Deconstruct the 'lead' array to a single object
+      {
+        $unwind: "$lead",
+      },
+      // Stage 3: Apply all filters at once
+      {
+        $match: {
+          ...mainQuery,
+          $or: dueTimezoneConditions,
+        },
+      },
+      // Stage 4 (Optional): Project the final fields you need
+      {
+        $project: {
+          // Exclude the addedBy field and include lead fields
+          addedBy: 0,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      // Stage 5: Limit the number of documents to return
+      {
+        $limit: limit,
+      },
+    ]
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "leads", // The name of the collection for your Lead model
+          localField: "lead",
+          foreignField: "_id",
+          as: "lead",
+        },
+      },
+      // Stage 2: Deconstruct the 'lead' array to a single object
+      {
+        $unwind: "$lead",
+      },
+      // Stage 3: Apply all filters at once
+      {
+        $match: {
+          ...mainQuery,
+          $or: dueTimezoneConditions,
+        },
+      },
+      {
+        $count: "totalCount",
+      },
+    ]
+    const countResult = await FollowUp.aggregate(countPipeline)
+    const totalItems = countResult.length > 0 ? countResult[0].totalCount : 0
+
+    const totalPages = Math.ceil(totalItems / limit)
+    const filteredFollowUps = await FollowUp.aggregate(pipeline)
+
+    return res.status(200).json({
+      filteredFollowUps,
+      totalItems,
+      totalPages,
+      page,
+      limit,
+    })
+  } catch (e) {
+    console.log("err, ", e)
+    return res.status(400).json({
+      error: e.message || "Error while getting filtered followup leads.",
+    })
   }
 })
 

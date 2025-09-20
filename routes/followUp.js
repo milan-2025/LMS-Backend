@@ -64,7 +64,7 @@ router.get("/get-follow-up", auth, async (req, res, next) => {
       // console.log("date in bk", nowDate)
 
       nowDate = dayjs().tz(tzone.id)
-      console.log("nd ", nowDate.toDate())
+      // console.log("nd ", nowDate.toDate())
 
       // let nowDate =
       // console.log("bkdate", nowDate)
@@ -121,7 +121,7 @@ router.get("/get-follow-up-ids", auth, async (req, res, next) => {
       // })
       // let nowDate = new Date(dateString)
       nowDate = dayjs().tz(tzone.id)
-      console.log("nd ", nowDate.toDate())
+      // console.log("nd ", nowDate.toDate())
       return {
         timeZone: tzone.name,
         date: { $lte: nowDate.toDate() },
