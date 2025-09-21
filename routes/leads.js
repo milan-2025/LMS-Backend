@@ -75,7 +75,9 @@ router.get("/get-leads", auth, async (req, res, next) => {
     const limit = parseInt(req.query.limit) || 10 // Default to 10 items per page
 
     const skip = (page - 1) * limit
-    const totalItems = await Lead.countDocuments()
+    const totalItems = await Lead.find({
+      addedBy: req.user._id,
+    }).countDocuments()
     const totalPages = Math.ceil(totalItems / limit)
     let leads = await Lead.find({
       addedBy: req.user._id,
