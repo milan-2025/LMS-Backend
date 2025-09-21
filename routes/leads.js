@@ -39,6 +39,12 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
     // Get the user ID from the request object, which was set by the auth middleware
     const userId = req.user._id
 
+    const oldCount = await Lead.find({
+      addedBy: userId,
+    }).countDocuments()
+
+    let newlyAdded = data.length
+
     const documents = data.map((row) => ({
       shipper: row.shipper?.trim() || "",
       contactPerson: row.contactPerson?.trim() || "",
@@ -52,7 +58,16 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
       addedBy: userId, // Add the user's ID to the document
     }))
 
-    await Lead.insertMany(documents)
+    let inserted = await Lead.insertMany(documents)
+    let newCount = await Lead.find({
+      addedBy: userId,
+    }).countDocuments()
+
+    if (newCount > oldCount) {
+    } else {
+      let error = new Error("Got error while uploading leads")
+      throw error
+    }
 
     fs.unlink(filePath, (err) => {
       if (err) {
