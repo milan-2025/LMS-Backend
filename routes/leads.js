@@ -62,10 +62,10 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
       console.log("file deleted successfully.")
     })
 
-    res.status(200).json({ message: "Data imported successfully!" })
+    return res.status(200).json({ message: "Data imported successfully!" })
   } catch (error) {
     console.error("Error importing data:", error)
-    res.status(500).json({ error: "Failed to import data." })
+    return res.status(500).json({ error: "Failed to import data." })
   }
 })
 
