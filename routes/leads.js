@@ -493,4 +493,22 @@ router.post("/get-filtered-leads/follow-up", auth, async (req, res, next) => {
   }
 })
 
+router.get("/get-lead-info-by-id", auth, async (req, res) => {
+  try {
+    const { leadId } = req.query
+    const lead = await Lead.findById(leadId)
+    if (!lead) {
+      let err = new Error("Lead not found")
+      throw err
+    }
+    return res.status(200).json({
+      lead: lead,
+    })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while finding lead.",
+    })
+  }
+})
+
 module.exports = router
