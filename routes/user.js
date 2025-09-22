@@ -15,11 +15,11 @@ router.post("/sign-up", async (req, res) => {
     const token = jwt.sign(
       { _id: user._id.toString() },
       process.env.JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "9h" }
     )
-    res.status(201).send({ token })
+    return res.status(201).send({ token })
   } catch (e) {
-    res.status(400).send({ error: e.message })
+    return res.status(400).send({ error: e.message })
   }
 })
 
@@ -40,9 +40,27 @@ router.post("/login", async (req, res) => {
       { expiresIn: "9h" }
     )
 
-    res.status(200).send({ token })
+    return res.status(200).send({ token })
   } catch (e) {
-    res.status(500).send({ error: e.message })
+    return res.status(500).send({ error: e.message })
+  }
+})
+
+router.post("/validate-token", async (req, res) => {
+  try {
+    // Get the token from the Authorization header
+    const token = req.header("Authorization").replace("Bearer ", "")
+    // Verify the token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET)
+    // Find the user by ID and check if the token is valid
+    const user = await User.findOne({ _id: decoded._id })
+
+    if (!user) {
+      throw new Error("Invalid token")
+    }
+    return res.status(200).json({ message: "valid token" })
+  } catch (e) {
+    return res.status(400).send({ error: e.message })
   }
 })
 
