@@ -511,4 +511,32 @@ router.get("/get-lead-info-by-id", auth, async (req, res) => {
   }
 })
 
+router.get("/get-responses", auth, async (req, res) => {
+  try {
+    const { leadId } = req.query
+    let responses = await Response.find({ leadId: leadId })
+    return res.status(200).json({
+      responses,
+    })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while finding responses.",
+    })
+  }
+})
+
+router.get("/get-comments", auth, async (req, res) => {
+  try {
+    const { leadId } = req.query
+    let comments = await Comment.find({ leadId: leadId })
+    return res.status(200).json({
+      comments,
+    })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while finding comments.",
+    })
+  }
+})
+
 module.exports = router
