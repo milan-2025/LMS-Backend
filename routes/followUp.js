@@ -143,4 +143,25 @@ router.get("/get-follow-up-ids", auth, async (req, res, next) => {
   }
 })
 
+router.get("/get-follow-up-info", auth, async (req, res) => {
+  try {
+    const { leadId } = req.query
+    // const userId = req.user._id
+    const followup = await FollowUp.findOne({
+      lead: leadId,
+    })
+    // if(!followup){
+    //   let err = new Error('follow up not found.')
+    //   throw err
+    // }
+    return res.status(200).json({
+      followup: followup,
+    })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "error while finding follow up.",
+    })
+  }
+})
+
 module.exports = router
