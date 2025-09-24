@@ -116,9 +116,16 @@ router.get("/get-leads", auth, async (req, res, next) => {
 router.post("/add-phone-number", auth, async (req, res, next) => {
   const { phoneNumber, comment, leadId } = req.body
   try {
-    const phnNumber = new PhoneNumber({ phoneNumber, comment, leadId })
-    await phnNumber.save()
-    return res.status(201).json({ message: "Phone number added !!!" })
+    let lead = await Lead.findById(leadId)
+    if (lead.phoneNumber.length > 0) {
+      const phnNumber = new PhoneNumber({ phoneNumber, comment, leadId })
+      await phnNumber.save()
+      return res.status(201).json({ message: "Phone number added !!!" })
+    } else {
+      lead.phoneNumber = phoneNumber
+      await lead.save()
+      return res.status(201).json({ message: "Phone number added !!!" })
+    }
   } catch (e) {
     return res
       .status(400)
@@ -150,9 +157,16 @@ router.get("/get-phone-numbers", auth, async (req, res, next) => {
 router.post("/add-email", auth, async (req, res, next) => {
   const { phoneNumber, comment, leadId } = req.body
   try {
-    const emailInstance = new Email({ email: phoneNumber, comment, leadId })
-    await emailInstance.save()
-    return res.status(201).json({ message: "Email added !!!" })
+    let lead = await Lead.findById(leadId)
+    if (lead.email.length > 0) {
+      const emailInstance = new Email({ email: phoneNumber, comment, leadId })
+      await emailInstance.save()
+      return res.status(201).json({ message: "Email added !!!" })
+    } else {
+      lead.email = phoneNumber
+      await lead.save()
+      return res.status(201).json({ message: "Email added !!!" })
+    }
   } catch (e) {
     return res
       .status(400)
