@@ -13,6 +13,7 @@ const dayjs = require("dayjs")
 const utc = require("dayjs/plugin/utc")
 const timezone = require("dayjs/plugin/timezone")
 const FollowUp = require("../models/FollowUp")
+const HotLead = require("../models/HotLead")
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -549,6 +550,41 @@ router.get("/get-comments", auth, async (req, res) => {
   } catch (e) {
     return res.status(400).json({
       error: e.message || "Error while finding comments.",
+    })
+  }
+})
+
+router.post("/chk-hot-lead", auth, async (req, res) => {
+  try {
+    const { leadId } = req.body
+    const hotLead = await HotLead.find({
+      lead: leadId,
+    })
+    if (hotLead.length > 0) {
+      return res.status(200).json({ hotLeadIncludes: true })
+    } else {
+      return res.status(200).json({ hotLeadIncludes: false })
+    }
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while checking hot leads.",
+    })
+  }
+})
+
+router.post("/add-hot-leads", auth, async (req, res) => {
+  try {
+    const { leadId } = req.body
+    const userId = req.user._id
+    const hotLead = new HotLead({
+      lead: leadId,
+      addedBy: userId,
+    })
+    await hotLead.save()
+    return res.status(201).json({ message: "Lead added to Hot Leads." })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while adding hot leads.",
     })
   }
 })
