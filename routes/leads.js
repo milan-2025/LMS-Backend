@@ -351,7 +351,9 @@ router.get("/filtered-options", auth, async (req, res, next) => {
 router.post("/get-filtered-leads", auth, async (req, res, next) => {
   try {
     let { state, commodity, timeZone, status, page, limit } = req.body
-    let query = {}
+    let query = {
+      addedBy: req.user._id,
+    }
     if (state.length > 0) {
       query.state = new RegExp(state, "i")
     }
@@ -572,7 +574,7 @@ router.post("/chk-hot-lead", auth, async (req, res) => {
   }
 })
 
-router.post("/add-hot-leads", auth, async (req, res) => {
+router.post("/add-hot-lead", auth, async (req, res) => {
   try {
     const { leadId } = req.body
     const userId = req.user._id
@@ -587,6 +589,47 @@ router.post("/add-hot-leads", auth, async (req, res) => {
       error: e.message || "Error while adding hot leads.",
     })
   }
+})
+
+router.post("/remove-hot-lead", auth, async (req, res) => {
+  try {
+    const { leadId } = req.body
+    await HotLead.findOneAndDelete({
+      lead: leadId,
+    })
+
+    return res.status(200).json({ message: "Removed Successfully" })
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while removing hot leads.",
+    })
+  }
+})
+
+router.get("/get-hot-leads", auth, async (req, res) => {
+  try {
+    const { page } = parseInt(req.query) || 1
+    const limit = 5
+    const totalItems = await HotLead.find({
+      addedBy: req.user._id,
+    }).countDocuments()
+    const skip = (page - 1) * limit
+    const totalPages = Math.ceil(totalItems / limit)
+
+    const hotLeads = await HotLead.find({ addedBy: req.user._id })
+      .skip(skip)
+      .limit(limit)
+      .populate("lead")
+      .exec()
+
+    return res.status(200).json({
+      hotLeads,
+      page,
+      limit,
+      totalItems,
+      totalPages,
+    })
+  } catch (e) {}
 })
 
 module.exports = router
