@@ -292,7 +292,7 @@ router.get("/filtered-options", auth, async (req, res, next) => {
     const { field } = req.query
     const { value } = req.query
     const { tbValue } = req.query
-    if (tbValue != "Follow Ups") {
+    if (tbValue == "All") {
       const options = await Lead.find(
         {
           [field]: { $regex: value, $options: "i" },
@@ -326,6 +326,38 @@ router.get("/filtered-options", auth, async (req, res, next) => {
             ...mainQuery,
             ["lead." + field]: { $regex: value, $options: "i" },
             $or: dueTimezoneConditions,
+          },
+        },
+        {
+          $project: {
+            ["lead." + field]: 1,
+          },
+        },
+        {
+          $limit: 10,
+        },
+      ]
+      const options = await FollowUp.aggregate(pipeline)
+      return res.status(200).json({
+        options,
+      })
+    } else if (tbValue == "Hot Leads") {
+      const pipeline = [
+        {
+          $lookup: {
+            from: "leads", // The name of the collection for your Lead model
+            localField: "lead",
+            foreignField: "_id",
+            as: "lead",
+          },
+        },
+        {
+          $unwind: "$lead",
+        },
+        {
+          $match: {
+            ...mainQuery,
+            ["lead." + field]: { $regex: value, $options: "i" },
           },
         },
         {
@@ -507,6 +539,106 @@ router.post("/get-filtered-leads/follow-up", auth, async (req, res, next) => {
     console.log("err, ", e)
     return res.status(400).json({
       error: e.message || "Error while getting filtered followup leads.",
+    })
+  }
+})
+
+router.post("/get-filtered-leads/hot-leads", auth, async (req, res) => {
+  let { state, commodity, timeZone, status, page, limit } = req.body
+  try {
+    let mainQuery = {
+      addedBy: req.user._id,
+    }
+
+    if (state && state.length > 0) {
+      mainQuery["lead.state"] = new RegExp(state, "i")
+    }
+    if (commodity && commodity.length > 0) {
+      mainQuery["lead.commodity"] = new RegExp(commodity, "i")
+    }
+    if (timeZone && timeZone.length > 0) {
+      mainQuery["lead.timeZone"] = new RegExp(timeZone, "i")
+    }
+    if (status && status.length > 0) {
+      mainQuery["lead.status"] = new RegExp(status, "i")
+    }
+    const skip = (page - 1) * limit
+
+    const pipeline = [
+      // Stage 1: Join with the 'leads' collection
+      {
+        $lookup: {
+          from: "leads", // The name of the collection for your Lead model
+          localField: "lead",
+          foreignField: "_id",
+          as: "lead",
+        },
+      },
+      // Stage 2: Deconstruct the 'lead' array to a single object
+      {
+        $unwind: "$lead",
+      },
+      // Stage 3: Apply all filters at once
+      {
+        $match: {
+          ...mainQuery,
+        },
+      },
+      // Stage 4 (Optional): Project the final fields you need
+      {
+        $project: {
+          // Exclude the addedBy field and include lead fields
+          addedBy: 0,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      // Stage 5: Limit the number of documents to return
+      {
+        $limit: limit,
+      },
+    ]
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "leads", // The name of the collection for your Lead model
+          localField: "lead",
+          foreignField: "_id",
+          as: "lead",
+        },
+      },
+      // Stage 2: Deconstruct the 'lead' array to a single object
+      {
+        $unwind: "$lead",
+      },
+      // Stage 3: Apply all filters at once
+      {
+        $match: {
+          ...mainQuery,
+        },
+      },
+      {
+        $count: "totalCount",
+      },
+    ]
+    const countResult = await HotLead.aggregate(countPipeline)
+    const totalItems = countResult.length > 0 ? countResult[0].totalCount : 0
+
+    const totalPages = Math.ceil(totalItems / limit)
+    const filteredHotLeads = await HotLead.aggregate(pipeline)
+
+    return res.status(200).json({
+      filteredHotLeads,
+      totalItems,
+      totalPages,
+      page,
+      limit,
+    })
+  } catch (e) {
+    console.log("err, ", e)
+    return res.status(400).json({
+      error: e.message || "Error while getting filtered Hot leads.",
     })
   }
 })
