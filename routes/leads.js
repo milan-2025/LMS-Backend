@@ -296,6 +296,7 @@ router.get("/filtered-options", auth, async (req, res, next) => {
       const options = await Lead.find(
         {
           [field]: { $regex: value, $options: "i" },
+          addedBy: req.user._id,
         },
         {
           [field]: 1,
