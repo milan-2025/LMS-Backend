@@ -609,7 +609,7 @@ router.post("/remove-hot-lead", auth, async (req, res) => {
 
 router.get("/get-hot-leads", auth, async (req, res) => {
   try {
-    const { page } = parseInt(req.query) || 1
+    const page = parseInt(req.query.page) || 1
     const limit = 5
     const totalItems = await HotLead.find({
       addedBy: req.user._id,
@@ -631,6 +631,7 @@ router.get("/get-hot-leads", auth, async (req, res) => {
       totalPages,
     })
   } catch (e) {
+    // console.log(e)
     return res.status(400).json({
       error: e.message || "Error while getting hot leads.",
     })
