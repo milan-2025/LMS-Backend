@@ -630,7 +630,11 @@ router.get("/get-hot-leads", auth, async (req, res) => {
       totalItems,
       totalPages,
     })
-  } catch (e) {}
+  } catch (e) {
+    return res.status(400).json({
+      error: e.message || "Error while getting hot leads.",
+    })
+  }
 })
 
 module.exports = router
