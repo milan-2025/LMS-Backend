@@ -369,7 +369,7 @@ router.get("/filtered-options", auth, async (req, res, next) => {
           $limit: 10,
         },
       ]
-      const options = await FollowUp.aggregate(pipeline)
+      const options = await HotLead.aggregate(pipeline)
       return res.status(200).json({
         options,
       })
