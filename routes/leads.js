@@ -784,21 +784,26 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
       overHeadButton,
     } = req.body
     // console.log("user:-", String(req.user._id))
+    let leadQuery = {}
     let query = {
       "lead.addedBy": req.user._id,
       "lead.email": { $ne: "" },
     }
     if (state.length > 0) {
       query["lead.state"] = new RegExp(state, "i")
+      leadQuery["state"] = new RegExp(state, "i")
     }
     if (commodity.length > 0) {
       query["lead.commodity"] = new RegExp(commodity, "i")
+      leadQuery["commodity"] = new RegExp(commodity, "i")
     }
     if (timeZone.length > 0) {
       query["lead.timeZone"] = new RegExp(timeZone, "i")
+      leadQuery["timeZone"] = new RegExp(timeZone, "i")
     }
     if (status.length > 0) {
       query["lead.status"] = new RegExp(status, "i")
+      leadQuery["status"] = new RegExp(status, "i")
     }
     let skip = (button - 1) * limit
     // remainingEmails = limit
@@ -806,7 +811,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
     let defaultTotalCount = await Lead.find({
       addedBy: req.user._id,
       email: { $ne: "" },
-      ...query,
+      ...leadQuery,
     }).countDocuments()
     const countPipeline = [
       {
@@ -848,7 +853,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
         {
           addedBy: req.user._id,
           email: { $ne: "" },
-          ...query,
+          ...leadQuery,
         },
         {
           email: 1,
@@ -871,7 +876,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
           {
             addedBy: req.user._id,
             email: { $ne: "" },
-            ...query,
+            ...leadQuery,
           },
           {
             email: 1,
