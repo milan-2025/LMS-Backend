@@ -806,6 +806,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
     let defaultTotalCount = await Lead.find({
       addedBy: req.user._id,
       email: { $ne: "" },
+      ...query,
     }).countDocuments()
     const countPipeline = [
       {
@@ -847,6 +848,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
         {
           addedBy: req.user._id,
           email: { $ne: "" },
+          ...query,
         },
         {
           email: 1,
@@ -869,6 +871,7 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
           {
             addedBy: req.user._id,
             email: { $ne: "" },
+            ...query,
           },
           {
             email: 1,
