@@ -163,12 +163,9 @@ router.post("/add-email", auth, async (req, res, next) => {
     if (lead.email.length > 0) {
       const alreadyPresentEmails = await Email.find({ leadId }).countDocuments()
       if (alreadyPresentEmails >= 10) {
-        return res
-          .status(400)
-          .json({
-            error:
-              "You have already stored 11 emails delete some to store more.",
-          })
+        return res.status(400).json({
+          error: "You have already stored 11 emails delete some to store more.",
+        })
       }
       const emailInstance = new Email({ email: phoneNumber, comment, leadId })
       await emailInstance.save()
@@ -782,287 +779,102 @@ router.get("/get-hot-leads", auth, async (req, res) => {
 
 router.post("/get-bulk-emails", auth, async (req, res) => {
   try {
-    let {
-      state,
-      commodity,
-      timeZone,
-      status,
-      button,
-      limit,
-      remainingEmails,
-      overHeadButton,
-    } = req.body
+    let { state, commodity, timeZone, status, button, limit } = req.body
     // console.log("user:-", String(req.user._id))
+
     let leadQuery = {}
-    let query = {
-      "lead.addedBy": req.user._id,
-      "lead.email": { $ne: "" },
-    }
+
     if (state.length > 0) {
-      query["lead.state"] = new RegExp(state, "i")
       leadQuery["state"] = new RegExp(state, "i")
     }
     if (commodity.length > 0) {
-      query["lead.commodity"] = new RegExp(commodity, "i")
       leadQuery["commodity"] = new RegExp(commodity, "i")
     }
     if (timeZone.length > 0) {
-      query["lead.timeZone"] = new RegExp(timeZone, "i")
       leadQuery["timeZone"] = new RegExp(timeZone, "i")
     }
     if (status.length > 0) {
-      query["lead.status"] = new RegExp(status, "i")
       leadQuery["status"] = new RegExp(status, "i")
     }
-    let skip = (button - 1) * limit
-    // remainingEmails = limit
-    // const defaultEmails =
-    let defaultTotalCount = await Lead.find({
-      addedBy: req.user._id,
-      email: { $ne: "" },
-      ...leadQuery,
-    }).countDocuments()
+
     const countPipeline = [
       {
-        $lookup: {
-          from: "leads", // The name of the collection for your Lead model
-          localField: "leadId",
-          foreignField: "_id",
-          as: "lead",
+        $match: {
+          addedBy: req.user._id,
+          email: { $ne: "" },
+          ...leadQuery,
         },
       },
-      // Stage 2: Deconstruct the 'lead' array to a single object
       {
-        $unwind: "$lead",
-      },
-      // {
-      //   $limit: 10, // Only grab the first 10 for quick inspection
-      // },
-      // Stage 3: Apply all filters at once
-      {
-        $match: {
-          ...query,
+        $lookup: {
+          from: "emails",
+          localField: "_id",
+          foreignField: "leadId",
+          as: "emails",
         },
       },
       {
         $count: "totalCount",
       },
     ]
-    const totaldepthCount = await Email.aggregate(countPipeline)
-    let totalDepth =
-      totaldepthCount.length > 0 ? totaldepthCount[0].totalCount : 0
 
-    if (
-      defaultTotalCount >= limit &&
-      remainingEmails != null &&
-      remainingEmails >= limit
-    ) {
-      remainingEmails = defaultTotalCount - limit
-      let defaultEmails = await Lead.find(
-        {
+    const totalCountResult = await Lead.aggregate(countPipeline)
+
+    let totalLeads =
+      totalCountResult.length > 0 ? totalCountResult[0].totalCount : 0
+    let skip = (button - 1) * limit
+
+    const EmailPipeline = [
+      {
+        $match: {
           addedBy: req.user._id,
           email: { $ne: "" },
           ...leadQuery,
         },
-        {
-          email: 1,
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $lookup: {
+          from: "emails",
+          localField: "_id",
+          foreignField: "leadId",
+          as: "emails",
+        },
+      },
+      {
+        $addFields: {
+          emailCount: { $size: "$emails" },
+        },
+      },
+      {
+        $project: {
           _id: 0,
-        }
-      )
-        .skip(skip)
-        .limit(limit)
-
-      return res.status(200).json({
-        totalEmails: defaultTotalCount + totalDepth,
-        emails: defaultEmails,
-        remainingEmails: remainingEmails,
-        overHeadButton: 1,
-      })
-    } else {
-      let defaultEmails = []
-      if (remainingEmails != null) {
-        defaultEmails = await Lead.find(
-          {
-            addedBy: req.user._id,
-            email: { $ne: "" },
-            ...leadQuery,
-          },
-          {
-            email: 1,
-            _id: 0,
-          }
-        )
-          .skip(skip)
-          .limit(limit)
-      }
-      let remainingLimit = limit - defaultEmails.length
-      skip = (button - overHeadButton - 1) * limit
-
-      console.log("default,", defaultEmails)
-
-      const Pipeline = [
-        {
-          $lookup: {
-            from: "leads", // The name of the collection for your Lead model
-            localField: "leadId",
-            foreignField: "_id",
-            as: "lead",
-          },
+          email: 1,
+          "emails.email": 1,
+          emailCount: 1,
         },
-        // Stage 2: Deconstruct the 'lead' array to a single object
-        {
-          $unwind: "$lead",
-        },
-        {
-          $match: {
-            ...query,
-          },
-        },
-        {
-          $project: {
-            // Exclude the addedBy field and include lead fields
-            _id: 0,
-            email: 1,
-          },
-        },
-        {
-          $skip: skip,
-        },
-        // Stage 5: Limit the number of documents to return
-        {
-          $limit: remainingLimit,
-        },
-      ]
-
-      const depthEmails = await Email.aggregate(Pipeline)
-      console.log("depth", depthEmails)
-      remainingEmails = null
-
-      return res.status(200).json({
-        totalEmails: defaultTotalCount + totalDepth,
-        emails: [...defaultEmails, ...depthEmails],
-        remainingEmails: remainingEmails,
-      })
-    }
-  } catch (e) {
-    console.log("error in bulk email:-", e)
-    return res
-      .status(400)
-      .json({ error: e.message || "error while getting bulk emails." })
-  }
-})
-
-router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
-  try {
-    let {
-      state,
-      commodity,
-      timeZone,
-      status,
-      button,
-      limit,
-      remainingEmails,
-      overHeadButton,
-    } = req.body
-    // console.log("user:-", String(req.user._id))
-    const timezones = [
-      { name: "PST", id: "America/Los_Angeles" },
-      { name: "MST", id: "America/Denver" },
-      { name: "CST", id: "America/Chicago" },
-      { name: "EST", id: "America/New_York" },
+      },
     ]
-    let nowDate = null
-    const dueTimezoneConditions = timezones.map((tzone) => {
-      // let now = new Date()
-      // let dateString = now.toLocaleString("en-US", {
-      //   timeZone: tzone.id,
-      // })
-      // let nowDate = new Date(dateString)
-      // console.log("date in bk", nowDate)
 
-      nowDate = dayjs().tz(tzone.id)
-      // console.log("nd ", nowDate.toDate())
-
-      // let nowDate =
-      // console.log("bkdate", nowDate)
-      return {
-        "followups.timeZone": tzone.name,
-        "followups.date": { $lte: nowDate.toDate() },
-      }
+    let totalButtons = Math.ceil(totalLeads / limit)
+    let foundEmails = await Lead.aggregate(EmailPipeline)
+    return res.status(200).json({
+      emailData: foundEmails,
+      totalLeads,
+      totalButtons,
     })
-
-    // let mainQuery = {
-    //   addedBy: req.user._id,
-    //   ["lead.email"]: { $ne: "" },
-    // }
-
-    // if (state && state.length > 0) {
-    //   mainQuery["lead.state"] = new RegExp(state, "i")
-    // }
-    // if (commodity && commodity.length > 0) {
-    //   mainQuery["lead.commodity"] = new RegExp(commodity, "i")
-    // }
-    // if (timeZone && timeZone.length > 0) {
-    //   mainQuery["lead.timeZone"] = new RegExp(timeZone, "i")
-    // }
-    // if (status && status.length > 0) {
-    //   mainQuery["lead.status"] = new RegExp(status, "i")
-    // }
-
-    // let leadQuery = {}
-    // let query = {
-    //   "lead.addedBy": req.user._id,
-    //   "lead.email": { $ne: "" },
-    // }
-    // if (state.length > 0) {
-    //   query["lead.state"] = new RegExp(state, "i")
-    //   leadQuery["state"] = new RegExp(state, "i")
-    // }
-    // if (commodity.length > 0) {
-    //   query["lead.commodity"] = new RegExp(commodity, "i")
-    //   leadQuery["commodity"] = new RegExp(commodity, "i")
-    // }
-    // if (timeZone.length > 0) {
-    //   query["lead.timeZone"] = new RegExp(timeZone, "i")
-    //   leadQuery["timeZone"] = new RegExp(timeZone, "i")
-    // }
-    // if (status.length > 0) {
-    //   query["lead.status"] = new RegExp(status, "i")
-    //   leadQuery["status"] = new RegExp(status, "i")
-    // }
-    // let skip = (button - 1) * limit
     // remainingEmails = limit
     // const defaultEmails =
-
-    // const countPipeline = [
-    //   {
-    //     $lookup: {
-    //       from: "leads", // The name of the collection for your Lead model
-    //       localField: "lead",
-    //       foreignField: "_id",
-    //       as: "lead",
-    //     },
-    //   },
-    //   // Stage 2: Deconstruct the 'lead' array to a single object
-    //   {
-    //     $unwind: "$lead",
-    //   },
-    //   // Stage 3: Apply all filters at once
-    //   {
-    //     $match: {
-    //       ...mainQuery,
-    //       $or: dueTimezoneConditions,
-    //     },
-    //   },
-    //   {
-    //     $count: "totalCount",
-    //   },
-    // ]
-    // let defaultTotalCountRsult = await Lead.aggregate(countPipeline)
-    // let defaultTotalCount =
-    //   defaultTotalCountRsult.length > 0
-    //     ? defaultTotalCountRsult[0].totalCount
-    //     : 0
+    // let defaultTotalCount = await Lead.find({
+    //   addedBy: req.user._id,
+    //   email: { $ne: "" },
+    //   ...leadQuery,
+    // }).countDocuments()
     // const countPipeline = [
     //   {
     //     $lookup: {
@@ -1089,6 +901,139 @@ router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
     //     $count: "totalCount",
     //   },
     // ]
+    // const totaldepthCount = await Email.aggregate(countPipeline)
+    // let totalDepth =
+    //   totaldepthCount.length > 0 ? totaldepthCount[0].totalCount : 0
+
+    // if (
+    //   defaultTotalCount >= limit &&
+    //   remainingEmails != null &&
+    //   remainingEmails >= limit
+    // ) {
+    //   remainingEmails = defaultTotalCount - limit
+    //   let defaultEmails = await Lead.find(
+    //     {
+    //       addedBy: req.user._id,
+    //       email: { $ne: "" },
+    //       ...leadQuery,
+    //     },
+    //     {
+    //       email: 1,
+    //       _id: 0,
+    //     }
+    //   )
+    //     .skip(skip)
+    //     .limit(limit)
+
+    //   return res.status(200).json({
+    //     totalEmails: defaultTotalCount + totalDepth,
+    //     emails: defaultEmails,
+    //     remainingEmails: remainingEmails,
+    //     overHeadButton: 1,
+    //   })
+    // } else {
+    //   let defaultEmails = []
+    //   if (remainingEmails != null) {
+    //     defaultEmails = await Lead.find(
+    //       {
+    //         addedBy: req.user._id,
+    //         email: { $ne: "" },
+    //         ...leadQuery,
+    //       },
+    //       {
+    //         email: 1,
+    //         _id: 0,
+    //       }
+    //     )
+    //       .skip(skip)
+    //       .limit(limit)
+    //   }
+    //   let remainingLimit = limit - defaultEmails.length
+    //   skip = (button - overHeadButton - 1) * limit
+
+    //   console.log("default,", defaultEmails)
+
+    //   const Pipeline = [
+    //     {
+    //       $lookup: {
+    //         from: "leads", // The name of the collection for your Lead model
+    //         localField: "leadId",
+    //         foreignField: "_id",
+    //         as: "lead",
+    //       },
+    //     },
+    //     // Stage 2: Deconstruct the 'lead' array to a single object
+    //     {
+    //       $unwind: "$lead",
+    //     },
+    //     {
+    //       $match: {
+    //         ...query,
+    //       },
+    //     },
+    //     {
+    //       $project: {
+    //         // Exclude the addedBy field and include lead fields
+    //         _id: 0,
+    //         email: 1,
+    //       },
+    //     },
+    //     {
+    //       $skip: skip,
+    //     },
+    //     // Stage 5: Limit the number of documents to return
+    //     {
+    //       $limit: remainingLimit,
+    //     },
+    //   ]
+
+    //   const depthEmails = await Email.aggregate(Pipeline)
+    //   console.log("depth", depthEmails)
+    //   remainingEmails = null
+
+    //   return res.status(200).json({
+    //     totalEmails: defaultTotalCount + totalDepth,
+    //     emails: [...defaultEmails, ...depthEmails],
+    //     remainingEmails: remainingEmails,
+    //   })
+    // }
+  } catch (e) {
+    console.log("error in bulk email:-", e)
+    return res
+      .status(400)
+      .json({ error: e.message || "error while getting bulk emails." })
+  }
+})
+
+router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
+  try {
+    let { state, commodity, timeZone, status, button, limit } = req.body
+    // console.log("user:-", String(req.user._id))
+    const timezones = [
+      { name: "PST", id: "America/Los_Angeles" },
+      { name: "MST", id: "America/Denver" },
+      { name: "CST", id: "America/Chicago" },
+      { name: "EST", id: "America/New_York" },
+    ]
+    let nowDate = null
+    const dueTimezoneConditions = timezones.map((tzone) => {
+      // let now = new Date()
+      // let dateString = now.toLocaleString("en-US", {
+      //   timeZone: tzone.id,
+      // })
+      // let nowDate = new Date(dateString)
+      // console.log("date in bk", nowDate)
+
+      nowDate = dayjs().tz(tzone.id)
+      // console.log("nd ", nowDate.toDate())
+
+      // let nowDate =
+      // console.log("bkdate", nowDate)
+      return {
+        "followups.timeZone": tzone.name,
+        "followups.date": { $lte: nowDate.toDate() },
+      }
+    })
 
     let query = {
       addedBy: req.user._id,
@@ -1163,6 +1108,12 @@ router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
         },
       },
       {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
         $unwind: "$followups",
       },
       {
@@ -1185,12 +1136,6 @@ router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
           "emails.email": 1,
           emailCount: 1,
         },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: limit,
       },
     ]
     const foundEmails = await Lead.aggregate(EmailPipeline)
