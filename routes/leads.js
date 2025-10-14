@@ -868,135 +868,6 @@ router.post("/get-bulk-emails", auth, async (req, res) => {
       totalLeads,
       totalButtons,
     })
-    // remainingEmails = limit
-    // const defaultEmails =
-    // let defaultTotalCount = await Lead.find({
-    //   addedBy: req.user._id,
-    //   email: { $ne: "" },
-    //   ...leadQuery,
-    // }).countDocuments()
-    // const countPipeline = [
-    //   {
-    //     $lookup: {
-    //       from: "leads", // The name of the collection for your Lead model
-    //       localField: "leadId",
-    //       foreignField: "_id",
-    //       as: "lead",
-    //     },
-    //   },
-    //   // Stage 2: Deconstruct the 'lead' array to a single object
-    //   {
-    //     $unwind: "$lead",
-    //   },
-    //   // {
-    //   //   $limit: 10, // Only grab the first 10 for quick inspection
-    //   // },
-    //   // Stage 3: Apply all filters at once
-    //   {
-    //     $match: {
-    //       ...query,
-    //     },
-    //   },
-    //   {
-    //     $count: "totalCount",
-    //   },
-    // ]
-    // const totaldepthCount = await Email.aggregate(countPipeline)
-    // let totalDepth =
-    //   totaldepthCount.length > 0 ? totaldepthCount[0].totalCount : 0
-
-    // if (
-    //   defaultTotalCount >= limit &&
-    //   remainingEmails != null &&
-    //   remainingEmails >= limit
-    // ) {
-    //   remainingEmails = defaultTotalCount - limit
-    //   let defaultEmails = await Lead.find(
-    //     {
-    //       addedBy: req.user._id,
-    //       email: { $ne: "" },
-    //       ...leadQuery,
-    //     },
-    //     {
-    //       email: 1,
-    //       _id: 0,
-    //     }
-    //   )
-    //     .skip(skip)
-    //     .limit(limit)
-
-    //   return res.status(200).json({
-    //     totalEmails: defaultTotalCount + totalDepth,
-    //     emails: defaultEmails,
-    //     remainingEmails: remainingEmails,
-    //     overHeadButton: 1,
-    //   })
-    // } else {
-    //   let defaultEmails = []
-    //   if (remainingEmails != null) {
-    //     defaultEmails = await Lead.find(
-    //       {
-    //         addedBy: req.user._id,
-    //         email: { $ne: "" },
-    //         ...leadQuery,
-    //       },
-    //       {
-    //         email: 1,
-    //         _id: 0,
-    //       }
-    //     )
-    //       .skip(skip)
-    //       .limit(limit)
-    //   }
-    //   let remainingLimit = limit - defaultEmails.length
-    //   skip = (button - overHeadButton - 1) * limit
-
-    //   console.log("default,", defaultEmails)
-
-    //   const Pipeline = [
-    //     {
-    //       $lookup: {
-    //         from: "leads", // The name of the collection for your Lead model
-    //         localField: "leadId",
-    //         foreignField: "_id",
-    //         as: "lead",
-    //       },
-    //     },
-    //     // Stage 2: Deconstruct the 'lead' array to a single object
-    //     {
-    //       $unwind: "$lead",
-    //     },
-    //     {
-    //       $match: {
-    //         ...query,
-    //       },
-    //     },
-    //     {
-    //       $project: {
-    //         // Exclude the addedBy field and include lead fields
-    //         _id: 0,
-    //         email: 1,
-    //       },
-    //     },
-    //     {
-    //       $skip: skip,
-    //     },
-    //     // Stage 5: Limit the number of documents to return
-    //     {
-    //       $limit: remainingLimit,
-    //     },
-    //   ]
-
-    //   const depthEmails = await Email.aggregate(Pipeline)
-    //   console.log("depth", depthEmails)
-    //   remainingEmails = null
-
-    //   return res.status(200).json({
-    //     totalEmails: defaultTotalCount + totalDepth,
-    //     emails: [...defaultEmails, ...depthEmails],
-    //     remainingEmails: remainingEmails,
-    //   })
-    // }
   } catch (e) {
     console.log("error in bulk email:-", e)
     return res
@@ -1151,6 +1022,121 @@ router.post("/get-bulk-emails-follow-ups", auth, async (req, res) => {
       totalLeads: totalLeads,
       totalButtons: totalButtons,
     })
+  } catch (e) {
+    console.log("error in bulk email:-", e)
+    return res
+      .status(400)
+      .json({ error: e.message || "error while getting bulk emails." })
+  }
+})
+
+router.post("/get-bulk-emails-hot-leads", auth, async (req, res) => {
+  try {
+    let { state, commodity, timeZone, status, button, limit } = req.body
+    let query = {
+      addedBy: req.user._id,
+      email: { $ne: "" },
+    }
+    if (state.length > 0) {
+      query.state = new RegExp(state, "i")
+    }
+    if (commodity.length > 0) {
+      query.commodity = new RegExp(commodity, "i")
+    }
+    if (timeZone.length > 0) {
+      query.timeZone = new RegExp(timeZone, "i")
+    }
+    if (status.length > 0) {
+      query.status = new RegExp(status, "i")
+    }
+
+    const countPipeline = [
+      {
+        $lookup: {
+          from: "hotleads",
+          localField: "_id",
+          foreignField: "lead",
+          as: "hotLeads",
+        },
+      },
+      {
+        $unwind: "$hotLeads",
+      },
+      {
+        $match: {
+          ...query,
+          "hotLeads.addedBy": req.user._id,
+        },
+      },
+      {
+        $lookup: {
+          from: "emails",
+          localField: "_id",
+          foreignField: "leadId",
+          as: "emails",
+        },
+      },
+      {
+        $count: "totalCount",
+      },
+    ]
+
+    let totalLeadsResult = await Lead.aggregate(countPipeline)
+    let totalLeads =
+      totalLeadsResult.length > 0 ? totalLeadsResult[0].totalCount : 0
+    let skip = (button - 1) * limit
+    let totalButtons = Math.ceil(totalLeads / limit)
+    const emailPipeline = [
+      {
+        $lookup: {
+          from: "hotleads",
+          localField: "_id",
+          foreignField: "lead",
+          as: "hotLeads",
+        },
+      },
+      {
+        $unwind: "$hotLeads",
+      },
+      {
+        $match: {
+          ...query,
+          "hotLeads.addedBy": req.user._id,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $lookup: {
+          from: "emails",
+          localField: "_id",
+          foreignField: "leadId",
+          as: "emails",
+        },
+      },
+      {
+        $addFields: {
+          emailCount: { $size: $emails },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          email: 1,
+          "emails.email": 1,
+          emailCount: 1,
+        },
+      },
+    ]
+
+    const foundEmails = await Lead.aggregate(emailPipeline)
+    return res
+      .status(200)
+      .json({ emailData: foundEmails, totalLeads, totalButtons })
   } catch (e) {
     console.log("error in bulk email:-", e)
     return res
