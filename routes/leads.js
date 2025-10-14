@@ -1120,7 +1120,7 @@ router.post("/get-bulk-emails-hot-leads", auth, async (req, res) => {
       },
       {
         $addFields: {
-          emailCount: { $size: $emails },
+          emailCount: { $size: "$emails" },
         },
       },
       {
