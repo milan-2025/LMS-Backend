@@ -256,8 +256,12 @@ router.post("/add-response", auth, async (req, res, next) => {
           addedBy: req.user._id,
           leadId: leadId,
         })
+        // console.log("alreadyCallsDone---", alreadycallsDone)
         if (alreadycallsDone.length > 0) {
-          let oldDate = alreadycallsDone[0].date.getMilliseconds()
+          let oldDate =
+            alreadycallsDone[alreadycallsDone.length - 1].date.getTime()
+          // console.log("oldDate--,", oldDate)
+          // console.log("now date---", Date.now())
           if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let callDone = new CallsDone({
               addedBy: req.user._id,
@@ -283,9 +287,10 @@ router.post("/add-response", auth, async (req, res, next) => {
         })
         if (alreadycallsDoneforEmail.length > 0) {
           let oldDate =
-            alreadycallsDoneforEmail[0].date.getMilliseconds() +
-            9 * 60 * 60 * 1000
-          if (oldDate < Date.now()) {
+            alreadycallsDoneforEmail[
+              alreadycallsDoneforEmail.length - 1
+            ].date.getTime()
+          if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let callDone = new CallsDone({
               addedBy: req.user._id,
               date: Date.now(),
@@ -308,8 +313,8 @@ router.post("/add-response", auth, async (req, res, next) => {
         })
         if (alreadyEmailsFound.length > 0) {
           let oldDate =
-            alreadyEmailsFound[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
-          if (oldDate < Date.now()) {
+            alreadyEmailsFound[alreadyEmailsFound.length - 1].date.getTime()
+          if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let foundedEmail = new FoundedEmail({
               addedBy: req.user._id,
               date: Date.now(),
@@ -335,8 +340,8 @@ router.post("/add-response", auth, async (req, res, next) => {
         })
         if (alreadyQuoteReceived.length > 0) {
           let oldDate =
-            alreadyQuoteReceived[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
-          if (oldDate < Date.now()) {
+            alreadyQuoteReceived[alreadyQuoteReceived.length - 1].date.getTime()
+          if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let newQuote = new QuotesReceived({
               addedBy: req.user._id,
               date: Date.now(),
@@ -362,8 +367,8 @@ router.post("/add-response", auth, async (req, res, next) => {
         })
         if (alreadyLoadsCovered.length > 0) {
           let oldDate =
-            alreadyLoadsCovered[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
-          if (oldDate < Date.now()) {
+            alreadyLoadsCovered[alreadyQuoteReceived.length - 1].date.getTime()
+          if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let newLoad = new LoadsCovered({
               addedBy: req.user._id,
               date: Date.now(),
