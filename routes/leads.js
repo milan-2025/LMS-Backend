@@ -257,9 +257,8 @@ router.post("/add-response", auth, async (req, res, next) => {
           leadId: leadId,
         })
         if (alreadycallsDone.length > 0) {
-          let oldDate =
-            alreadycallsDone[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
-          if (oldDate < Date.now()) {
+          let oldDate = alreadycallsDone[0].date.getMilliseconds()
+          if (Math.abs(Date.now() - oldDate) > 9 * 60 * 60 * 1000) {
             let callDone = new CallsDone({
               addedBy: req.user._id,
               date: Date.now(),
