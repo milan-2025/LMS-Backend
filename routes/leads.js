@@ -15,6 +15,11 @@ const timezone = require("dayjs/plugin/timezone")
 const FollowUp = require("../models/FollowUp")
 const HotLead = require("../models/HotLead")
 const mongoose = require("mongoose")
+const CallsDone = require("../models/CallsDone")
+const FoundedEmail = require("../models/FoundedEmail")
+const QuotesReceived = require("../models/QuotesReceived")
+const LoadsCovered = require("../models/LoadsCovered")
+// const EmailsFound = require("../models/EmailsFound")
 
 dayjs.extend(utc)
 dayjs.extend(timezone)
@@ -237,6 +242,144 @@ router.post("/add-response", auth, async (req, res, next) => {
       case "Load covered":
         foundLead.status = "Customer Added"
         await foundLead.save()
+        break
+    }
+    switch (response) {
+      case "Not Connected":
+      case "Freight On Board (FOB)":
+      case "Customer Routed":
+      case "Do Not Desturb (DND)":
+      case "Not Interested":
+      case "Callback Later":
+        // callDone code
+        let alreadycallsDone = await CallsDone.find({
+          addedBy: req.user._id,
+          leadId: leadId,
+        })
+        if (alreadycallsDone.length > 0) {
+          let oldDate =
+            alreadycallsDone[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
+          if (oldDate < Date.now()) {
+            let callDone = new CallsDone({
+              addedBy: req.user._id,
+              date: Date.now(),
+              leadId: leadId,
+            })
+            await callDone.save()
+          }
+        } else {
+          let callDone = new CallsDone({
+            addedBy: req.user._id,
+            date: Date.now(),
+            leadId: leadId,
+          })
+          await callDone.save()
+        }
+        break
+      case "Email Sent":
+        // callDone
+        let alreadycallsDoneforEmail = await CallsDone.find({
+          addedBy: req.user._id,
+          leadId: leadId,
+        })
+        if (alreadycallsDoneforEmail.length > 0) {
+          let oldDate =
+            alreadycallsDoneforEmail[0].date.getMilliseconds() +
+            9 * 60 * 60 * 1000
+          if (oldDate < Date.now()) {
+            let callDone = new CallsDone({
+              addedBy: req.user._id,
+              date: Date.now(),
+              leadId: leadId,
+            })
+            await callDone.save()
+          }
+        } else {
+          let callDone = new CallsDone({
+            addedBy: req.user._id,
+            date: Date.now(),
+            leadId: leadId,
+          })
+          await callDone.save()
+        }
+        // email found code
+        let alreadyEmailsFound = await FoundedEmail.find({
+          addedBy: req.user._id,
+          leadId: leadId,
+        })
+        if (alreadyEmailsFound.length > 0) {
+          let oldDate =
+            alreadyEmailsFound[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
+          if (oldDate < Date.now()) {
+            let foundedEmail = new FoundedEmail({
+              addedBy: req.user._id,
+              date: Date.now(),
+              leadId: leadId,
+            })
+            await foundedEmail.save()
+          }
+        } else {
+          let foundedEmail = new FoundedEmail({
+            addedBy: req.user._id,
+            date: Date.now(),
+            leadId: leadId,
+          })
+          await foundedEmail.save()
+        }
+        break
+      case "Quote Received":
+      case "Load Received":
+        // quote received code
+        let alreadyQuoteReceived = await QuotesReceived.find({
+          addedBy: req.user._id,
+          leadId: leadId,
+        })
+        if (alreadyQuoteReceived.length > 0) {
+          let oldDate =
+            alreadyQuoteReceived[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
+          if (oldDate < Date.now()) {
+            let newQuote = new QuotesReceived({
+              addedBy: req.user._id,
+              date: Date.now(),
+              leadId: leadId,
+            })
+            await newQuote.save()
+          }
+        } else {
+          let newQuote = new QuotesReceived({
+            addedBy: req.user._id,
+            date: Date.now(),
+            leadId: leadId,
+          })
+          await newQuote.save()
+        }
+        break
+      case "Load covered":
+        // loads covered code
+
+        let alreadyLoadsCovered = await LoadsCovered.find({
+          addedBy: req.user._id,
+          leadId: leadId,
+        })
+        if (alreadyLoadsCovered.length > 0) {
+          let oldDate =
+            alreadyLoadsCovered[0].date.getMilliseconds() + 9 * 60 * 60 * 1000
+          if (oldDate < Date.now()) {
+            let newLoad = new LoadsCovered({
+              addedBy: req.user._id,
+              date: Date.now(),
+              leadId: leadId,
+            })
+            await newLoad.save()
+          }
+        } else {
+          let newLoad = new LoadsCovered({
+            addedBy: req.user._id,
+            date: Date.now(),
+            leadId: leadId,
+          })
+          await newLoad.save()
+        }
         break
     }
     return res.status(201).json({
