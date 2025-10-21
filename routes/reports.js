@@ -9,14 +9,28 @@ const router = express.Router()
 
 router.get("/get-general-report", auth, async (req, res) => {
   try {
-    const today = new Date().getDay()
+    const todayTimestamp = new Date(
+      new Date().toLocaleString("en-US", {
+        timeZone: "America/Los_Angeles",
+      })
+    )
+
+    const today = todayTimestamp.getDay()
 
     let obj = {}
 
     for (let i = 0; i <= 6 - today; i++) {
       let dateRange = [
-        new Date(Date.now() + 24 * i * 60 * 60 * 1000 - 12 * 60 * 60 * 1000),
-        new Date(Date.now() + 24 * i * 60 * 60 * 1000 + 12 * 60 * 60 * 1000),
+        new Date(
+          todayTimestamp.getTime() +
+            24 * i * 60 * 60 * 1000 -
+            12 * 60 * 60 * 1000
+        ),
+        new Date(
+          todayTimestamp.getTime() +
+            24 * i * 60 * 60 * 1000 +
+            12 * 60 * 60 * 1000
+        ),
       ]
       obj[today + i] = dateRange
     }
@@ -24,8 +38,16 @@ router.get("/get-general-report", auth, async (req, res) => {
     let j = 0
     for (let i = today; i > 0; i--) {
       let dateRange = [
-        new Date(Date.now() - 24 * i * 60 * 60 * 1000 - 12 * 60 * 60 * 1000),
-        new Date(Date.now() - 24 * i * 60 * 60 * 1000 + 12 * 60 * 60 * 1000),
+        new Date(
+          todayTimestamp.getTime() -
+            24 * i * 60 * 60 * 1000 -
+            12 * 60 * 60 * 1000
+        ),
+        new Date(
+          todayTimestamp.getTime() -
+            24 * i * 60 * 60 * 1000 +
+            12 * 60 * 60 * 1000
+        ),
       ]
       obj[j] = dateRange
       j++
