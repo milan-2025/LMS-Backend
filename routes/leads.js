@@ -57,7 +57,7 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
       contactPerson: row.contactPerson?.trim() || "",
       address: row.address?.trim() || "",
       state: row.state?.trim() || "",
-      timeZone: row.timeZone?.trim() || "",
+      timeZone: row.timeZone?.trim() || "PST",
       phoneNumber: row.phoneNumber?.trim() || "",
       website: row.website?.trim() || "",
       commodity: row.commodity?.trim() || "",

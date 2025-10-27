@@ -19,7 +19,7 @@ const leadSchema = new mongoose.Schema({
   },
   timeZone: {
     type: String,
-    default: "",
+    default: "PST",
   },
   phoneNumber: {
     type: String,
