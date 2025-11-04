@@ -53,15 +53,15 @@ router.post("/upload", auth, upload.single("file"), async (req, res) => {
     let newlyAdded = data.length
 
     const documents = data.map((row) => ({
-      shipper: row.shipper?.trim() || "",
-      contactPerson: row.contactPerson?.trim() || "",
-      address: row.address?.trim() || "",
-      state: row.state?.trim() || "",
-      timeZone: row.timeZone?.trim() || "PST",
-      phoneNumber: row.phoneNumber?.trim() || "",
-      website: row.website?.trim() || "",
-      commodity: row.commodity?.trim() || "",
-      email: row.email?.trim() || "",
+      shipper: row.shipper || "",
+      contactPerson: row.contactPerson || "",
+      address: row.address || "",
+      state: row.state || "",
+      timeZone: row.timeZone || "PST",
+      phoneNumber: row.phoneNumber || "",
+      website: row.website || "",
+      commodity: row.commodity || "",
+      email: row.email || "",
       addedBy: userId, // Add the user's ID to the document
     }))
 
