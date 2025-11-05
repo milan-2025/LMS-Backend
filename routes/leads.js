@@ -220,15 +220,24 @@ router.post("/add-response", auth, async (req, res, next) => {
       })
     ).getTime()
     switch (response) {
-      case "Not Connected":
-        foundLead.status = "Not Connected"
+      case "Not Connected-RNR-VM":
+        foundLead.status = "Not Connected-RNR-VM"
         await foundLead.save()
         break
+      case "Invalid number":
       case "Freight On Board (FOB)":
       case "Customer Routed":
       case "Do Not Desturb (DND)":
       case "Not Interested":
         foundLead.status = "DND"
+        await foundLead.save()
+        break
+      case "Email Follow Up":
+        foundLead.status = "Email Follow Up"
+        await foundLead.save()
+        break
+      case "Call Follow Up":
+        foundLead.status = "Call Follow Up"
         await foundLead.save()
         break
       case "Callback Later":
@@ -250,11 +259,14 @@ router.post("/add-response", auth, async (req, res, next) => {
         break
     }
     switch (response) {
-      case "Not Connected":
+      case "Not Connected-RNR-VM":
       case "Freight On Board (FOB)":
       case "Customer Routed":
       case "Do Not Desturb (DND)":
       case "Not Interested":
+      case "Call Follow Up":
+      case "Email Follow Up":
+      case "Invalid number":
       case "Callback Later":
         // callDone code
         let alreadycallsDone = await CallsDone.find({
